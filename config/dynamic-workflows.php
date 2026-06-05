@@ -11,7 +11,7 @@ return [
 
     'route' => [
         'prefix'     => 'dynamic-workflows',
-        'middleware' => ['web'],
+        'middleware' => ['web', 'auth'],
         'name'       => 'dynamic-workflows.index',
     ],
 

@@ -1,70 +1,57 @@
 # Dynamic Workflows
 
-Motor de regras de negócio para Laravel. Permite configurar, via interface gráfica, ações automáticas que são disparadas nos eventos do ciclo de vida de models Eloquent (`created`, `updated`, `deleted`), sem necessidade de código.
+Motor de regras de negócio para Laravel. Permite configurar, via interface gráfica, ações automáticas disparadas nos eventos do ciclo de vida de models Eloquent (`created`, `updated`, `deleted`), sem necessidade de código.
 
 ---
 
 ## Requisitos
 
-| Dependência | Versão |
+| Dependência | Versão mínima |
 |---|---|
-| PHP | ^8.2 |
-| Laravel | ^11.0 \| ^12.0 |
-| Livewire | ^3.0 \| ^4.0 |
-| Filament Actions | ^3.0 \| ^5.0 |
-| Filament Forms | ^3.0 \| ^5.0 |
-| Filament Tables | ^3.0 \| ^5.0 |
-| Filament Support | ^3.0 \| ^5.0 |
+| PHP | 8.2 |
+| Laravel | 11.0 |
+| Livewire | 3.0 |
+| Filament (actions, forms, tables, support) | 3.0 ou 5.0 |
 
 ---
 
-## Instalação
+## Instalação em produção
 
-### 1. Configurar repositório local (desenvolvimento)
+### 1. Adicionar o repositório no `composer.json` do projeto
 
-No `composer.json` do projeto host, adicione o repositório path:
+Como o pacote é privado (hospedado no GitHub da organização), adicione o repositório VCS:
 
 ```json
 "repositories": [
     {
-        "type": "path",
-        "url": "../DynamicWorkFlows"
+        "type": "vcs",
+        "url": "git@github.com:ROGGA-EMPREENDIMENTOS/dynamic-workflows.git"
     }
 ]
 ```
 
+> **Pré-requisito:** a chave SSH do servidor de produção deve ter acesso de leitura ao repositório.
+> No GitHub: **Settings → Deploy keys → Add deploy key** (marque apenas leitura).
+
 ### 2. Instalar o pacote
 
 ```bash
-composer require rogga/dynamic-workflows @dev
+composer require rogga/dynamic-workflows:^1.0
 ```
 
-> **Nota:** O `@dev` é necessário pois o pacote ainda não possui versão tagueada. Em produção, crie uma tag (`git tag v1.0.0`) e remova o `@dev`.
+### 3. Publicar a configuração
 
-### 3. Rodar as migrations
+```bash
+php artisan vendor:publish --tag=dynamic-workflows-config
+```
+
+### 4. Rodar as migrations
 
 ```bash
 php artisan migrate
 ```
 
-Cria a tabela `workflow_rules` com os campos:
-
-| Campo | Tipo | Descrição |
-|---|---|---|
-| `id` | bigint | Chave primária |
-| `name` | string | Nome da regra |
-| `model_class` | string | Classe completa do model |
-| `event` | string | `created`, `updated` ou `deleted` |
-| `conditions` | json | Condições para disparo |
-| `actions` | json | Ações a executar |
-| `is_active` | boolean | Ativa/inativa |
-| `created_by` | bigint | Usuário que criou |
-| `updated_by` | bigint | Usuário que editou por último |
-| `timestamps` | — | `created_at`, `updated_at` |
-
-### 4. Adicionar a Trait ao model
-
-Em cada model que deve disparar workflows:
+### 5. Adicionar a Trait nos models
 
 ```php
 use Rogga\DynamicWorkflows\Traits\HasDynamicWorkflows;
@@ -75,87 +62,107 @@ class Order extends Model
 }
 ```
 
-### 5. Adicionar a view
+### 6. Acessar a interface
 
-Crie uma rota e view no projeto host. O pacote já registra automaticamente a rota `/dynamic-workflows`. Caso queira integrar ao seu layout:
+A rota é registrada automaticamente com autenticação obrigatória:
 
-```blade
-@livewire('dynamic-workflows.workflow-rule-list')
 ```
-
-Certifique-se de que o layout inclua os assets do Filament e Livewire:
-
-```blade
-@filamentStyles
-@livewireStyles
-{{-- conteúdo --}}
-@livewireScripts
-@filamentScripts
+https://seu-dominio.com/dynamic-workflows
 ```
 
 ---
 
-## Acesso à interface
+## Instalação em desenvolvimento (local)
 
-Após a instalação, a interface estará disponível em:
+Para desenvolver ou testar com symlink:
 
+```json
+"repositories": [
+    {
+        "type": "path",
+        "url": "../DynamicWorkFlows"
+    }
+]
 ```
-http://seu-projeto.test/dynamic-workflows
-```
 
-A URL pode ser personalizada publicando o arquivo de configuração (ver seção [Configuração](#configuração)).
+```bash
+composer require rogga/dynamic-workflows @dev
+```
 
 ---
 
 ## Configuração
 
-Publique o arquivo de configuração:
-
-```bash
-php artisan vendor:publish --tag=dynamic-workflows-config
-```
-
 ```php
 // config/dynamic-workflows.php
 
 return [
-    // Namespace base dos models do projeto
-    // Permite digitar apenas "Order" no formulário em vez de "App\Models\Order"
+
+    /*
+    |--------------------------------------------------------------------------
+    | Namespace base dos models
+    |--------------------------------------------------------------------------
+    | Permite digitar apenas "Order" no formulário em vez de "App\Models\Order".
+    */
     'model_namespace' => 'App\\Models',
 
-    // Rota da interface de gerenciamento
+    /*
+    |--------------------------------------------------------------------------
+    | Rota da interface
+    |--------------------------------------------------------------------------
+    | Em produção mantenha sempre o middleware 'auth'.
+    */
     'route' => [
-        'prefix'     => 'dynamic-workflows',   // URL: /dynamic-workflows
-        'middleware' => ['web', 'auth'],         // Adicione 'auth' para proteger
+        'prefix'     => 'dynamic-workflows',
+        'middleware' => ['web', 'auth'],
         'name'       => 'dynamic-workflows.index',
     ],
 
-    // Credenciais para o handler de WhatsApp
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp API
+    |--------------------------------------------------------------------------
+    | Compatível com Z-API, Evolution API e similares.
+    */
     'whatsapp' => [
-        'api_url'          => env('WHATSAPP_API_URL', ''),
-        'api_token'        => env('WHATSAPP_API_TOKEN', ''),
-        'user_phone_field' => 'phone', // Campo de telefone no model User
+        'api_url'          => env('WHATSAPP_API_URL'),
+        'api_token'        => env('WHATSAPP_API_TOKEN'),
+        'user_phone_field' => 'phone',
     ],
+
 ];
+```
+
+### Variáveis de ambiente
+
+```env
+# E-mail
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.exemplo.com
+MAIL_PORT=587
+MAIL_USERNAME=usuario
+MAIL_PASSWORD=senha
+MAIL_FROM_ADDRESS=noreply@empresa.com
+MAIL_FROM_NAME="${APP_NAME}"
+
+# WhatsApp
+WHATSAPP_API_URL=https://api.z-api.io/instances/ID/token/TOKEN/send-text
+WHATSAPP_API_TOKEN=seu_token
 ```
 
 ---
 
 ## Como funciona
 
-### Fluxo de execução
-
 ```
-Model event (created/updated/deleted)
-    └── HasDynamicWorkflows::processWorkflows()
-            └── Busca WorkflowRules ativas para o model + evento
-                    └── Avalia as condições da regra
-                            └── Se aprovadas, executa cada ação em sequência
+Model event (created / updated / deleted)
+    └── HasDynamicWorkflows → processWorkflows()
+            └── Busca WorkflowRules ativas para aquele model + evento
+                    └── Avalia as condições (lógica AND)
+                            └── Executa cada ação em sequência
 ```
 
 ### Condições
-
-Cada regra pode ter zero ou mais condições. Todas devem ser verdadeiras para as ações serem executadas (lógica AND).
 
 | Operador | Significado |
 |---|---|
@@ -167,15 +174,11 @@ Cada regra pode ter zero ou mais condições. Todas devem ser verdadeiras para a
 | `<=` | Menor ou igual |
 | `like` | Contém (substring) |
 
-**Exemplo:** Disparar apenas quando `status` for igual a `aprovado`.
-
 ---
 
 ## Ações disponíveis
 
-### Enviar E-mail (`send_email`)
-
-Envia um e-mail via `Mail` do Laravel.
+### `send_email` — Enviar E-mail
 
 | Campo | Descrição |
 |---|---|
@@ -183,119 +186,91 @@ Envia um e-mail via `Mail` do Laravel.
 | Assunto | Suporta variáveis `{{campo}}` |
 | Corpo | Suporta variáveis `{{campo}}` |
 
-Requer configuração do driver de e-mail no `.env` do projeto:
-
-```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.exemplo.com
-MAIL_PORT=587
-MAIL_USERNAME=usuario
-MAIL_PASSWORD=senha
-MAIL_FROM_ADDRESS=noreply@exemplo.com
-```
-
 ---
 
-### Enviar WhatsApp (`send_whatsapp`)
-
-Envia mensagem via API HTTP compatível com Z-API, Evolution API e similares.
+### `send_whatsapp` — Enviar WhatsApp
 
 | Campo | Descrição |
 |---|---|
 | Destinatário | Número direto, usuário específico ou criador do registro |
 | Mensagem | Suporta variáveis `{{campo}}` |
 
-Configure no `.env`:
-
-```env
-WHATSAPP_API_URL=https://api.z-api.io/instances/ID/token/TOKEN/send-text
-WHATSAPP_API_TOKEN=seu_token
-```
-
 ---
 
-### Chamar Webhook (`call_webhook`)
-
-Dispara uma requisição HTTP para uma URL externa com os atributos do model.
+### `call_webhook` — Chamar Webhook
 
 | Campo | Descrição |
 |---|---|
 | URL | Endpoint. Suporta variáveis `{{campo}}` |
 | Método | `POST`, `GET` ou `PUT` |
 
-O payload enviado contém:
+Payload enviado automaticamente:
 
 ```json
 {
     "model": "orders",
     "model_id": 42,
-    "attributes": { "id": 42, "status": "aprovado", ... }
+    "attributes": { "id": 42, "status": "aprovado" }
 }
 ```
 
 ---
 
-### Alterar Campo (`update_field`)
+### `update_field` — Alterar Campo
 
-Atualiza um campo do próprio model que disparou o evento.
+Atualiza um campo do model via query builder, sem disparar eventos Eloquent (sem risco de loop infinito).
 
 | Campo | Descrição |
 |---|---|
-| Campo | Selecionado dinamicamente da tabela do model |
-| Novo Valor | Valor literal a ser salvo |
-
-> A atualização usa query builder diretamente para evitar loop infinito de eventos.
+| Campo | Selecionado da tabela do model |
+| Novo valor | Valor literal |
 
 ---
 
 ## Variáveis dinâmicas
 
-Em qualquer campo de texto das ações (assunto, corpo do e-mail, mensagem, URL), você pode usar variáveis que serão substituídas pelos valores do model no momento do disparo.
+Use `{{variavel}}` em qualquer campo de texto das ações:
 
-### Sintaxe
+| Sintaxe | Resultado |
+|---|---|
+| `{{id}}` | Atributo direto do model |
+| `{{customer.name}}` | Campo de relação BelongsTo |
+| `{{address.city}}` | Relação aninhada |
+| `{{items.name}}` | HasMany — valores unidos por vírgula |
+
+**Exemplos:**
 
 ```
-{{campo}}               → atributo direto do model
-{{relacao.campo}}       → campo de uma relação BelongsTo
-{{relacao.outra.campo}} → relação aninhada
-```
-
-### Exemplos
-
-```
-Olá {{customer.name}}, seu pedido #{{id}} está {{status}}.
-
-Valor total: {{total}}
-Endereço: {{address.street}}, {{address.city}}
-
-https://api.exemplo.com/orders/{{id}}/notify
+Assunto:  Pedido #{{id}} — {{customer.name}}
+Mensagem: Olá {{customer.name}}, seu pedido está {{status}}.
+URL:      https://api.exemplo.com/orders/{{id}}/notify
 ```
 
 ---
 
-## Expondo campos do model na interface
+## Destinatário dinâmico (e-mail e WhatsApp)
 
-Por padrão, o pacote lê as colunas da tabela via `Schema::getColumnListing()`. Para personalizar quais campos aparecem nos seletores de condição e "Alterar Campo", implemente `getWorkflowFields()` no model:
+| Opção | Comportamento |
+|---|---|
+| **Direto** | Endereço/número fixo |
+| **Usuário específico** | Seleciona um registro da tabela `users` |
+| **Criador do registro** | Lê o campo configurado (ex: `created_by`), busca o usuário e usa seu e-mail/telefone |
 
-### Array simples (chave = label)
+---
 
-```php
-public function getWorkflowFields(): array
-{
-    return ['status', 'total', 'payment_method', 'notes'];
-}
-```
+## Campos disponíveis no formulário
 
-### Array associativo (chave do banco => label legível)
+Por padrão, todos os campos da tabela são carregados via `Schema::getColumnListing()` automaticamente.
+
+Para personalizar com labels legíveis:
 
 ```php
 public function getWorkflowFields(): array
 {
     return [
-        'status'         => 'Status do Pedido',
+        'status'         => 'Status',
         'total'          => 'Valor Total',
-        'payment_method' => 'Método de Pagamento',
-        'notes'          => 'Observações',
+        'payment_method' => 'Pagamento',
     ];
 }
 ```
@@ -304,7 +279,7 @@ public function getWorkflowFields(): array
 
 ## Adicionando ações customizadas
 
-### 1. Criar a classe da ação
+**1. Criar a classe:**
 
 ```php
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
@@ -314,15 +289,7 @@ class EnviarSmsAction implements ActionHandler
 {
     public function handle(Model $model, array $config): void
     {
-        $numero  = $config['sms_to']      ?? null;
-        $mensagem = $config['sms_message'] ?? null;
-
-        if (! $numero || ! $mensagem) {
-            return;
-        }
-
-        // Integração com seu provider de SMS
-        SmsService::send($numero, $mensagem);
+        SmsService::send($config['sms_to'], $config['sms_message']);
     }
 
     public function getLabel(): string
@@ -332,7 +299,7 @@ class EnviarSmsAction implements ActionHandler
 }
 ```
 
-### 2. Registrar no AppServiceProvider
+**2. Registrar no `AppServiceProvider`:**
 
 ```php
 use Rogga\DynamicWorkflows\DynamicWorkflows;
@@ -343,20 +310,60 @@ public function boot(): void
 }
 ```
 
-A nova opção aparece automaticamente no formulário de regras.
+---
+
+## Recomendações para produção
+
+### Filas (queues)
+
+Para não bloquear a requisição ao disparar e-mails ou webhooks, implemente handlers que despacham Jobs:
+
+```php
+class EnviarEmailAction implements ActionHandler
+{
+    public function handle(Model $model, array $config): void
+    {
+        ProcessWorkflowEmailJob::dispatch($model->getKey(), get_class($model), $config);
+    }
+}
+```
+
+### Segurança
+
+- Mantenha sempre `'auth'` no middleware da rota
+- Use **Deploy Keys** no GitHub com permissão somente leitura para o servidor de produção
+- Revise as ações cadastradas periodicamente, especialmente webhooks com URLs externas
+
+### Cache
+
+Após qualquer atualização do pacote em produção:
+
+```bash
+php artisan optimize:clear
+composer dump-autoload
+```
+
+---
+
+## Integração com Filament Panel
+
+Se o projeto usar Filament Panel, registre o plugin no `PanelProvider`:
+
+```php
+use Rogga\DynamicWorkflows\DynamicWorkflowsPlugin;
+
+->plugins([
+    DynamicWorkflowsPlugin::make(),
+])
+```
 
 ---
 
 ## Publicando assets
 
 ```bash
-# Configuração
 php artisan vendor:publish --tag=dynamic-workflows-config
-
-# Migrations (para customizar)
 php artisan vendor:publish --tag=dynamic-workflows-migrations
-
-# Views (para customizar o layout)
 php artisan vendor:publish --tag=dynamic-workflows-views
 ```
 
@@ -367,32 +374,37 @@ php artisan vendor:publish --tag=dynamic-workflows-views
 ```
 src/
 ├── Actions/
-│   ├── CallWebhookAction.php      # Handler: chamar webhook
-│   ├── SendEmailAction.php        # Handler: enviar e-mail
-│   ├── SendWhatsAppAction.php     # Handler: enviar WhatsApp
-│   └── UpdateFieldAction.php      # Handler: alterar campo
+│   ├── CallWebhookAction.php
+│   ├── SendEmailAction.php
+│   ├── SendWhatsAppAction.php
+│   └── UpdateFieldAction.php
 ├── Contracts/
-│   └── ActionHandler.php          # Interface para ações customizadas
-├── Filament/Resources/            # Resource para uso com Filament Panel
-│   └── WorkflowRuleResource.php
+│   └── ActionHandler.php          ← interface para ações customizadas
+├── Filament/Resources/            ← Resource para Filament Panel
 ├── Livewire/
-│   ├── WorkflowRuleList.php       # Componente principal (tabela + CRUD modal)
-│   └── WorkflowRuleForm.php       # Componente de formulário standalone
-├── Mail/
-│   └── WorkflowMail.php           # Mailable para o handler de e-mail
-├── Models/
-│   └── WorkflowRule.php           # Model da tabela workflow_rules
-├── Traits/
-│   └── HasDynamicWorkflows.php    # Trait para os models do projeto
-├── ActionRegistry.php             # Registro de handlers de ação
-├── DynamicWorkflows.php           # Classe de entrada (API estática)
-├── DynamicWorkflowsPlugin.php     # Plugin para Filament Panel
+│   ├── WorkflowRuleList.php       ← tabela com CRUD modal
+│   └── WorkflowRuleForm.php       ← formulário standalone
+├── Mail/WorkflowMail.php
+├── Models/WorkflowRule.php
+├── Traits/HasDynamicWorkflows.php ← adicionar nos models do projeto
+├── ActionRegistry.php
+├── DynamicWorkflows.php           ← API estática pública
+├── DynamicWorkflowsPlugin.php
 ├── DynamicWorkflowsServiceProvider.php
-└── VariableResolver.php           # Interpolação de {{variáveis}}
+└── VariableResolver.php
 ```
+
+---
+
+## Versionamento
+
+| Versão | Descrição |
+|---|---|
+| `1.0.1` | Produção: rota protegida por auth, README revisado |
+| `1.0.0` | Release inicial |
 
 ---
 
 ## Licença
 
-MIT
+MIT © Rogga Empreendimentos

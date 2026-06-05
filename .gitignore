@@ -1,4 +1,5 @@
 /vendor/
+/prompt-pacote.md
 /node_modules/
 /.phpunit.cache
 .env
