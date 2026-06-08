@@ -16,7 +16,15 @@ return [
     ],
 
     'whatsapp' => [
-        'api_url'   => env('WHATSAPP_API_URL', ''),
-        'api_token' => env('WHATSAPP_API_TOKEN', ''),
+        'api_url'          => env('WHATSAPP_API_URL', ''),
+        'api_token'        => env('WHATSAPP_API_TOKEN', ''),
+        'user_phone_field' => env('WHATSAPP_USER_PHONE_FIELD', 'phone'),
+    ],
+
+    'sms' => [
+        'api_url'          => env('SMS_API_URL', 'https://sms.comtele.com.br/api/v2/send'),
+        'api_key'          => env('SMS_API_KEY', ''),
+        'sender'           => env('SMS_SENDER', ''),
+        'user_phone_field' => env('SMS_USER_PHONE_FIELD', 'phone'),
     ],
 ];

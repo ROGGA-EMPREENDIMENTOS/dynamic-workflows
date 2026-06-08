@@ -130,6 +130,22 @@ return [
         'user_phone_field' => 'phone',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | SMS — Comtele
+    |--------------------------------------------------------------------------
+    | api_url          → endpoint da API (padrão: Comtele v2)
+    | api_key          → chave de autenticação (header auth-key)
+    | sender           → remetente padrão (pode ser sobrescrito por ação)
+    | user_phone_field → campo de telefone no model User
+    */
+    'sms' => [
+        'api_url'          => env('SMS_API_URL', 'https://sms.comtele.com.br/api/v2/send'),
+        'api_key'          => env('SMS_API_KEY'),
+        'sender'           => env('SMS_SENDER'),
+        'user_phone_field' => env('SMS_USER_PHONE_FIELD', 'phone'),
+    ],
+
 ];
 ```
 
@@ -148,6 +164,12 @@ MAIL_FROM_NAME="${APP_NAME}"
 # WhatsApp
 WHATSAPP_API_URL=https://api.z-api.io/instances/ID/token/TOKEN/send-text
 WHATSAPP_API_TOKEN=seu_token
+
+# SMS (Comtele)
+SMS_API_KEY=sua_chave_comtele
+SMS_SENDER=NomeApp        # máx. 11 caracteres, exibido como remetente no celular
+# SMS_API_URL=            # opcional — sobrescreve o endpoint padrão da Comtele
+# SMS_USER_PHONE_FIELD=   # opcional — campo de telefone no model User (padrão: phone)
 ```
 
 ---
@@ -194,6 +216,27 @@ Model event (created / updated / deleted)
 |---|---|
 | Destinatário | Número direto, usuário específico ou criador do registro |
 | Mensagem | Suporta variáveis `{{campo}}` |
+
+---
+
+### `send_sms` — Enviar SMS
+
+Integração nativa com a **Comtele** (SMS Marketing / transacional). A URL da API é configurável para outros provedores com payload compatível.
+
+| Campo | Descrição |
+|---|---|
+| Destinatário | Número direto, usuário específico ou criador do registro |
+| Remetente | Identificação exibida no celular — máx. 11 caracteres. Default: `APP_NAME` |
+| Mensagem | Suporta variáveis `{{campo}}`. Limitada a **160 caracteres** |
+
+**Pré-requisitos:**
+
+```env
+SMS_API_KEY=sua_chave_comtele
+SMS_SENDER=NomeApp
+```
+
+O número do destinatário deve estar no formato `5511999999999` (DDI + DDD + número, sem espaços ou símbolos).
 
 ---
 
@@ -248,13 +291,20 @@ URL:      https://api.exemplo.com/orders/{{id}}/notify
 
 ---
 
-## Destinatário dinâmico (e-mail e WhatsApp)
+## Destinatário dinâmico (e-mail, WhatsApp e SMS)
 
 | Opção | Comportamento |
 |---|---|
-| **Direto** | Endereço/número fixo |
+| **Direto** | Endereço/número fixo digitado na regra |
 | **Usuário específico** | Seleciona um registro da tabela `users` |
 | **Criador do registro** | Lê o campo configurado (ex: `created_by`), busca o usuário e usa seu e-mail/telefone |
+
+O campo de telefone buscado nos usuários é configurável por canal:
+
+```env
+WHATSAPP_USER_PHONE_FIELD=celular   # padrão: phone
+SMS_USER_PHONE_FIELD=celular        # padrão: phone
+```
 
 ---
 
@@ -285,16 +335,16 @@ public function getWorkflowFields(): array
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
 use Illuminate\Database\Eloquent\Model;
 
-class EnviarSmsAction implements ActionHandler
+class NotificarSlackAction implements ActionHandler
 {
     public function handle(Model $model, array $config): void
     {
-        SmsService::send($config['sms_to'], $config['sms_message']);
+        Http::post($config['slack_webhook'], ['text' => $config['slack_message']]);
     }
 
     public function getLabel(): string
     {
-        return 'Enviar SMS';
+        return 'Notificar Slack';
     }
 }
 ```
@@ -306,7 +356,7 @@ use Rogga\DynamicWorkflows\DynamicWorkflows;
 
 public function boot(): void
 {
-    DynamicWorkflows::registerAction('send_sms', EnviarSmsAction::class);
+    DynamicWorkflows::registerAction('minha_acao', MinhaAcaoCustomizada::class);
 }
 ```
 
@@ -376,6 +426,7 @@ src/
 ├── Actions/
 │   ├── CallWebhookAction.php
 │   ├── SendEmailAction.php
+│   ├── SendSmsAction.php
 │   ├── SendWhatsAppAction.php
 │   └── UpdateFieldAction.php
 ├── Contracts/

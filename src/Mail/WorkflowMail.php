@@ -26,7 +26,7 @@ class WorkflowMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'dynamic-workflows::mail.workflow',
+            markdown: 'dynamic-workflows::mail.workflow',
             with: [
                 'body'  => $this->config['email_body'] ?? '',
                 'model' => $this->model,

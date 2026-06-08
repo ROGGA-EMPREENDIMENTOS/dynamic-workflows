@@ -4,7 +4,7 @@
 
         <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
             <button type="submit">
-                {{ $ruleId ? 'Atualizar' : 'Criar' }}
+                Salvar
             </button>
 
             @if($ruleId)

@@ -78,19 +78,21 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                 Action::make('create')
                     ->label('Nova Regra')
                     ->icon('heroicon-o-plus')
+                    ->modalSubmitActionLabel('Salvar')
                     ->form(self::workflowFormSchema())
                     ->action(fn (array $data) => WorkflowRule::create($data)),
             ])
             ->actions([
                 EditAction::make()
+                    ->modalSubmitActionLabel('Salvar')
                     ->form(self::workflowFormSchema())
                     ->action(fn (WorkflowRule $record, array $data) => $record->update($data)),
                 Action::make('duplicate')
                     ->label('Duplicar')
                     ->icon('heroicon-o-document-duplicate')
-                    ->action(function (WorkflowRule $record, \Livewire\Component $livewire) {
+                    ->action(function (WorkflowRule $record, Component $livewire) {
                         $copy = $record->replicate();
-                        $copy->name = $record->name . ' (cópia)';
+                        $copy->name = $record->name.' (cópia)';
                         $copy->save();
 
                         $livewire->mountTableAction('edit', (string) $copy->getKey());
@@ -117,17 +119,18 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                 ->label('Model')
                 ->required()
                 ->placeholder('Order')
-                ->helperText(fn () => 'Namespace aplicado automaticamente: ' . config('dynamic-workflows.model_namespace', 'App\\Models'))
+                ->helperText(fn () => 'Namespace aplicado automaticamente: '.config('dynamic-workflows.model_namespace', 'App\\Models'))
                 ->formatStateUsing(fn (?string $state): ?string => $state ? class_basename($state) : null)
                 ->dehydrateStateUsing(function (?string $state): ?string {
-                    if (! $state) {
+                    if (!$state) {
                         return null;
                     }
                     if (str_contains($state, '\\')) {
                         return $state;
                     }
                     $ns = rtrim(config('dynamic-workflows.model_namespace', 'App\\Models'), '\\');
-                    return $ns . '\\' . $state;
+
+                    return $ns.'\\'.$state;
                 })
                 ->live(debounce: 600)
                 ->columnSpanFull(),
@@ -157,12 +160,12 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                     Select::make('operator')
                         ->label('Operador')
                         ->options([
-                            '='    => 'Igual a',
-                            '!='   => 'Diferente de',
-                            '>'    => 'Maior que',
-                            '<'    => 'Menor que',
-                            '>='   => 'Maior ou igual',
-                            '<='   => 'Menor ou igual',
+                            '=' => 'Igual a',
+                            '!=' => 'Diferente de',
+                            '>' => 'Maior que',
+                            '<' => 'Menor que',
+                            '>=' => 'Maior ou igual',
+                            '<=' => 'Menor ou igual',
                             'like' => 'Contém',
                         ])
                         ->required(),
@@ -189,8 +192,8 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                     Select::make('email_recipient_type')
                         ->label('Destinatário')
                         ->options([
-                            'direct'  => 'E-mail direto',
-                            'user'    => 'Usuário específico',
+                            'direct' => 'E-mail direto',
+                            'user' => 'Usuário específico',
                             'creator' => 'Criador do registro',
                         ])
                         ->default('direct')
@@ -235,8 +238,8 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                     Select::make('whatsapp_recipient_type')
                         ->label('Destinatário')
                         ->options([
-                            'direct'  => 'Número direto',
-                            'user'    => 'Usuário específico',
+                            'direct' => 'Número direto',
+                            'user' => 'Usuário específico',
                             'creator' => 'Criador do registro',
                         ])
                         ->default('direct')
@@ -268,6 +271,53 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                         ->rows(3)
                         ->visible(fn (Get $get) => $get('type') === 'send_whatsapp')
                         ->required(fn (Get $get) => $get('type') === 'send_whatsapp')
+                        ->columnSpanFull(),
+
+                    // ── Enviar SMS ─────────────────────────────────────────────
+                    Select::make('sms_recipient_type')
+                        ->label('Destinatário')
+                        ->options([
+                            'direct' => 'Número direto',
+                            'user' => 'Usuário específico',
+                            'creator' => 'Criador do registro',
+                        ])
+                        ->default('direct')
+                        ->live()
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms')
+                        ->columnSpanFull(),
+
+                    TextInput::make('sms_to')
+                        ->label('Número (ex: 5511999999999)')
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'direct')
+                        ->required(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'direct'),
+
+                    Select::make('sms_user_id')
+                        ->label('Usuário')
+                        ->options(fn () => self::userOptions())
+                        ->searchable()
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'user')
+                        ->required(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'user'),
+
+                    TextInput::make('sms_creator_field')
+                        ->label('Campo do criador no model (ex: created_by)')
+                        ->default('created_by')
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'creator')
+                        ->required(fn (Get $get) => $get('type') === 'send_sms' && $get('sms_recipient_type') === 'creator'),
+
+                    TextInput::make('sms_sender')
+                        ->label('Remetente (identificação)')
+                        ->default(fn () => config('app.name', 'Sistema'))
+                        ->maxLength(11)
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms')
+                        ->required(fn (Get $get) => $get('type') === 'send_sms'),
+
+                    Textarea::make('sms_message')
+                        ->label('Mensagem')
+                        ->helperText('Use {{campo}} ou {{relacao.campo}}. Ex: Olá {{customer.name}}, seu pedido {{id}} está {{status}}.')
+                        ->rows(3)
+                        ->maxLength(160)
+                        ->visible(fn (Get $get) => $get('type') === 'send_sms')
+                        ->required(fn (Get $get) => $get('type') === 'send_sms')
                         ->columnSpanFull(),
 
                     // ── Chamar Webhook ─────────────────────────────────────────
@@ -305,16 +355,16 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
 
     protected static function modelFields(?string $modelClass): array
     {
-        if (! $modelClass) {
+        if (!$modelClass) {
             return [];
         }
 
-        if (! str_contains($modelClass, '\\')) {
-            $ns         = rtrim(config('dynamic-workflows.model_namespace', 'App\\Models'), '\\');
-            $modelClass = $ns . '\\' . $modelClass;
+        if (!str_contains($modelClass, '\\')) {
+            $ns = rtrim(config('dynamic-workflows.model_namespace', 'App\\Models'), '\\');
+            $modelClass = $ns.'\\'.$modelClass;
         }
 
-        if (! class_exists($modelClass)) {
+        if (!class_exists($modelClass)) {
             return [];
         }
 
@@ -324,7 +374,7 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
             if (method_exists($model, 'getWorkflowFields')) {
                 $fields = $model->getWorkflowFields();
 
-                if (! empty($fields)) {
+                if (!empty($fields)) {
                     return array_is_list($fields)
                         ? array_combine($fields, $fields)
                         : $fields;
@@ -344,7 +394,7 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
     {
         $userModel = config('auth.providers.users.model', 'App\\Models\\User');
 
-        if (! class_exists($userModel)) {
+        if (!class_exists($userModel)) {
             return [];
         }
 
