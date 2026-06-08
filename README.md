@@ -93,6 +93,32 @@ composer require rogga/dynamic-workflows @dev
 
 ## Configuração
 
+### Interface gráfica (recomendado)
+
+A partir da v1.2.0 todas as configurações de canais podem ser gerenciadas diretamente pela interface, sem necessidade de variáveis de ambiente. Na tela de workflows, clique no botão **⚙ Configurações** no canto superior direito da tabela.
+
+O painel é organizado por grupo de ação. Para cada canal:
+
+1. Ative ou desative o canal pelo toggle
+2. Ao ativar, os campos de configuração aparecem logo abaixo
+3. Salve — as configurações ficam armazenadas no banco de dados
+
+Canais configuráveis pela interface:
+
+| Canal | Campos configuráveis |
+|---|---|
+| **E-mail** | Ativar/desativar (credenciais via `.env` do Laravel) |
+| **WhatsApp** | URL da API, Token, campo de telefone do usuário |
+| **SMS** | URL da API, Chave da API, Remetente padrão, campo de telefone |
+| **Webhook** | Ativar/desativar |
+| **Alterar Campo** | Ativar/desativar |
+
+> As credenciais salvas pela interface têm prioridade sobre as variáveis de ambiente. Os canais desativados não aparecem no formulário de cadastro de regras.
+
+---
+
+### Arquivo de configuração
+
 ```php
 // config/dynamic-workflows.php
 
@@ -120,9 +146,9 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | WhatsApp API
+    | WhatsApp API — fallback para variáveis de ambiente
     |--------------------------------------------------------------------------
-    | Compatível com Z-API, Evolution API e similares.
+    | Caso não configurado pela interface, usa os valores abaixo.
     */
     'whatsapp' => [
         'api_url'          => env('WHATSAPP_API_URL'),
@@ -132,12 +158,9 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | SMS — Comtele
+    | SMS — fallback para variáveis de ambiente
     |--------------------------------------------------------------------------
-    | api_url          → endpoint da API (padrão: Comtele v2)
-    | api_key          → chave de autenticação (header auth-key)
-    | sender           → remetente padrão (pode ser sobrescrito por ação)
-    | user_phone_field → campo de telefone no model User
+    | Caso não configurado pela interface, usa os valores abaixo.
     */
     'sms' => [
         'api_url'          => env('SMS_API_URL', 'https://sms.comtele.com.br/api/v2/send'),
@@ -149,10 +172,12 @@ return [
 ];
 ```
 
-### Variáveis de ambiente
+### Variáveis de ambiente (opcional — fallback)
+
+As variáveis abaixo são usadas apenas quando as configurações não foram salvas pela interface gráfica.
 
 ```env
-# E-mail
+# E-mail (obrigatório — gerenciado pelo Laravel)
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.exemplo.com
 MAIL_PORT=587
@@ -161,11 +186,11 @@ MAIL_PASSWORD=senha
 MAIL_FROM_ADDRESS=noreply@empresa.com
 MAIL_FROM_NAME="${APP_NAME}"
 
-# WhatsApp
+# WhatsApp (opcional se configurado pela interface)
 WHATSAPP_API_URL=https://api.z-api.io/instances/ID/token/TOKEN/send-text
 WHATSAPP_API_TOKEN=seu_token
 
-# SMS (Comtele)
+# SMS — Comtele (opcional se configurado pela interface)
 SMS_API_KEY=sua_chave_comtele
 SMS_SENDER=NomeApp        # máx. 11 caracteres, exibido como remetente no celular
 # SMS_API_URL=            # opcional — sobrescreve o endpoint padrão da Comtele
@@ -433,10 +458,12 @@ src/
 │   └── ActionHandler.php          ← interface para ações customizadas
 ├── Filament/Resources/            ← Resource para Filament Panel
 ├── Livewire/
-│   ├── WorkflowRuleList.php       ← tabela com CRUD modal
+│   ├── WorkflowRuleList.php       ← tabela com CRUD modal + botão de configurações
 │   └── WorkflowRuleForm.php       ← formulário standalone
 ├── Mail/WorkflowMail.php
-├── Models/WorkflowRule.php
+├── Models/
+│   ├── WorkflowRule.php
+│   └── WorkflowSettings.php      ← configurações persistidas no banco
 ├── Traits/HasDynamicWorkflows.php ← adicionar nos models do projeto
 ├── ActionRegistry.php
 ├── DynamicWorkflows.php           ← API estática pública
@@ -451,6 +478,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.2.0` | Cadastro de configurações via interface (⚙), ativar/desativar ações por canal, credenciais de WhatsApp e SMS persistidas no banco |
 | `1.1.0` | Ação de envio de SMS (Comtele), e-mail com Markdown e layout do host, botão "Salvar" no formulário |
 | `1.0.1` | Produção: rota protegida por auth, README revisado |
 | `1.0.0` | Release inicial |

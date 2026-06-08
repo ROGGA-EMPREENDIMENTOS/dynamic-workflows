@@ -7,6 +7,7 @@ namespace Rogga\DynamicWorkflows\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
+use Rogga\DynamicWorkflows\Models\WorkflowSettings;
 use Rogga\DynamicWorkflows\VariableResolver;
 
 class SendSmsAction implements ActionHandler
@@ -15,11 +16,11 @@ class SendSmsAction implements ActionHandler
 
     public function handle(Model $model, array $config): void
     {
-        $apiUrl  = config('dynamic-workflows.sms.api_url');
-        $apiKey  = config('dynamic-workflows.sms.api_key');
+        $apiUrl  = WorkflowSettings::get('sms_api_url') ?: config('dynamic-workflows.sms.api_url');
+        $apiKey  = WorkflowSettings::get('sms_api_key') ?: config('dynamic-workflows.sms.api_key');
         $config  = $this->resolver->resolveArray($config, $model);
         $to      = $this->resolveRecipient($model, $config);
-        $sender  = $config['sms_sender'] ?? config('dynamic-workflows.sms.sender') ?? config('app.name');
+        $sender  = $config['sms_sender'] ?? WorkflowSettings::get('sms_sender') ?? config('dynamic-workflows.sms.sender') ?? config('app.name');
         $message = $config['sms_message'] ?? null;
 
         if (! $apiUrl || ! $apiKey || ! $to || ! $message) {
@@ -41,7 +42,7 @@ class SendSmsAction implements ActionHandler
 
     private function resolveRecipient(Model $model, array $config): ?string
     {
-        $phoneField = config('dynamic-workflows.sms.user_phone_field', 'phone');
+        $phoneField = WorkflowSettings::get('sms_user_phone_field') ?: config('dynamic-workflows.sms.user_phone_field', 'phone');
 
         return match ($config['sms_recipient_type'] ?? 'direct') {
             'direct'  => $config['sms_to'] ?? null,

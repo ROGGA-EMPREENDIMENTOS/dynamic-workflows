@@ -29,4 +29,14 @@ class ActionRegistry
             $this->handlers
         );
     }
+
+    /** @return array<string, string> */
+    public function enabledOptions(): array
+    {
+        return array_filter(
+            $this->options(),
+            fn (string $label, string $key) => \Rogga\DynamicWorkflows\Models\WorkflowSettings::isActionEnabled($key),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
 }

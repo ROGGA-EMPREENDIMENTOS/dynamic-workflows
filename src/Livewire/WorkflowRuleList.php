@@ -10,6 +10,7 @@ use Filament\Actions\Contracts\HasActions;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Repeater;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -26,6 +27,7 @@ use Filament\Tables\Table;
 use Livewire\Component;
 use Rogga\DynamicWorkflows\ActionRegistry;
 use Rogga\DynamicWorkflows\Models\WorkflowRule;
+use Rogga\DynamicWorkflows\Models\WorkflowSettings;
 
 class WorkflowRuleList extends Component implements HasActions, HasForms, HasTable
 {
@@ -75,6 +77,16 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                     ->placeholder('Todos os models'),
             ])
             ->headerActions([
+                Action::make('settings')
+                    ->label('Configurações')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->color('gray')
+                    ->modalHeading('Configurações do Workflow')
+                    ->modalSubmitActionLabel('Salvar')
+                    ->modalWidth('2xl')
+                    ->fillForm(fn (): array => WorkflowSettings::getFormData())
+                    ->form(self::settingsFormSchema())
+                    ->action(fn (array $data) => WorkflowSettings::store($data)),
                 Action::make('create')
                     ->label('Nova Regra')
                     ->icon('heroicon-o-plus')
@@ -183,7 +195,7 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                 ->schema([
                     Select::make('type')
                         ->label('Tipo de Ação')
-                        ->options(fn () => app(ActionRegistry::class)->options())
+                        ->options(fn () => app(ActionRegistry::class)->enabledOptions())
                         ->required()
                         ->live()
                         ->columnSpanFull(),
@@ -403,6 +415,87 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    public static function settingsFormSchema(): array
+    {
+        return [
+            Section::make('E-mail')
+                ->schema([
+                    Toggle::make('email_enabled')
+                        ->label('Ativar envio de e-mail')
+                        ->default(true)
+                        ->live(),
+                ]),
+
+            Section::make('WhatsApp')
+                ->schema([
+                    Toggle::make('whatsapp_enabled')
+                        ->label('Ativar envio de WhatsApp')
+                        ->default(true)
+                        ->live(),
+                    TextInput::make('whatsapp_api_url')
+                        ->label('URL da API')
+                        ->placeholder('https://api.z-api.io/...')
+                        ->visible(fn (Get $get): bool => (bool) $get('whatsapp_enabled'))
+                        ->columnSpanFull(),
+                    TextInput::make('whatsapp_api_token')
+                        ->label('Token da API')
+                        ->password()
+                        ->revealable()
+                        ->visible(fn (Get $get): bool => (bool) $get('whatsapp_enabled'))
+                        ->columnSpanFull(),
+                    TextInput::make('whatsapp_user_phone_field')
+                        ->label('Campo de telefone do usuário')
+                        ->placeholder('phone')
+                        ->helperText('Nome do campo na tabela de usuários que contém o número de telefone')
+                        ->visible(fn (Get $get): bool => (bool) $get('whatsapp_enabled')),
+                ])
+                ->columns(2),
+
+            Section::make('SMS')
+                ->schema([
+                    Toggle::make('sms_enabled')
+                        ->label('Ativar envio de SMS')
+                        ->default(true)
+                        ->live(),
+                    TextInput::make('sms_api_url')
+                        ->label('URL da API')
+                        ->placeholder('https://sms.comtele.com.br/api/v2/send')
+                        ->visible(fn (Get $get): bool => (bool) $get('sms_enabled'))
+                        ->columnSpanFull(),
+                    TextInput::make('sms_api_key')
+                        ->label('Chave da API')
+                        ->password()
+                        ->revealable()
+                        ->visible(fn (Get $get): bool => (bool) $get('sms_enabled')),
+                    TextInput::make('sms_sender')
+                        ->label('Remetente padrão')
+                        ->maxLength(11)
+                        ->placeholder(config('app.name', 'Sistema'))
+                        ->visible(fn (Get $get): bool => (bool) $get('sms_enabled')),
+                    TextInput::make('sms_user_phone_field')
+                        ->label('Campo de telefone do usuário')
+                        ->placeholder('phone')
+                        ->helperText('Nome do campo na tabela de usuários que contém o número de telefone')
+                        ->visible(fn (Get $get): bool => (bool) $get('sms_enabled')),
+                ])
+                ->columns(2),
+
+            Section::make('Webhook')
+                ->schema([
+                    Toggle::make('webhook_enabled')
+                        ->label('Ativar chamadas de webhook')
+                        ->default(true),
+                ]),
+
+            Section::make('Alterar Campo')
+                ->schema([
+                    Toggle::make('update_field_enabled')
+                        ->label('Ativar alteração de campo')
+                        ->default(true),
+                ]),
+        ];
     }
 
     public function render(): \Illuminate\View\View

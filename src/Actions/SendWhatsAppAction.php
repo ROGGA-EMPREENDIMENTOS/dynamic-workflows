@@ -7,6 +7,7 @@ namespace Rogga\DynamicWorkflows\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
+use Rogga\DynamicWorkflows\Models\WorkflowSettings;
 use Rogga\DynamicWorkflows\VariableResolver;
 
 class SendWhatsAppAction implements ActionHandler
@@ -15,8 +16,8 @@ class SendWhatsAppAction implements ActionHandler
 
     public function handle(Model $model, array $config): void
     {
-        $apiUrl   = config('dynamic-workflows.whatsapp.api_url');
-        $apiToken = config('dynamic-workflows.whatsapp.api_token');
+        $apiUrl   = WorkflowSettings::get('whatsapp_api_url') ?: config('dynamic-workflows.whatsapp.api_url');
+        $apiToken = WorkflowSettings::get('whatsapp_api_token') ?: config('dynamic-workflows.whatsapp.api_token');
         $config   = $this->resolver->resolveArray($config, $model);
         $to       = $this->resolveRecipient($model, $config);
         $message  = $config['whatsapp_message'] ?? null;
@@ -38,7 +39,7 @@ class SendWhatsAppAction implements ActionHandler
 
     private function resolveRecipient(Model $model, array $config): ?string
     {
-        $phoneField = config('dynamic-workflows.whatsapp.user_phone_field', 'phone');
+        $phoneField = WorkflowSettings::get('whatsapp_user_phone_field') ?: config('dynamic-workflows.whatsapp.user_phone_field', 'phone');
 
         return match ($config['whatsapp_recipient_type'] ?? 'direct') {
             'direct'  => $config['whatsapp_to'] ?? null,
