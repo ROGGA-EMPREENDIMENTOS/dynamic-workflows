@@ -451,6 +451,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.1.0` | Ação de envio de SMS (Comtele), e-mail com Markdown e layout do host, botão "Salvar" no formulário |
 | `1.0.1` | Produção: rota protegida por auth, README revisado |
 | `1.0.0` | Release inicial |
 
