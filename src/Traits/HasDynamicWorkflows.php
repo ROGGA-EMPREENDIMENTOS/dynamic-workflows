@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rogga\DynamicWorkflows\Traits;
 
-use Rogga\DynamicWorkflows\ActionRegistry;
+use Rogga\DynamicWorkflows\Jobs\ProcessWorkflowActionsJob;
 use Rogga\DynamicWorkflows\Models\WorkflowRule;
 
 trait HasDynamicWorkflows
@@ -43,17 +43,22 @@ trait HasDynamicWorkflows
                 ->where('is_active', true)
                 ->get();
 
-            $registry = app(ActionRegistry::class);
-
             foreach ($rules as $rule) {
                 if (! $this->evaluateConditions($rule->conditions ?? [])) {
                     continue;
                 }
 
-                foreach ($rule->actions ?? [] as $actionConfig) {
-                    $handler = $registry->get($actionConfig['type'] ?? '');
-                    $handler?->handle($this, $actionConfig);
+                $actions = $rule->actions ?? [];
+
+                if (empty($actions)) {
+                    continue;
                 }
+
+                ProcessWorkflowActionsJob::dispatch(
+                    static::class,
+                    $this->getKey(),
+                    $actions,
+                );
             }
         } finally {
             self::$processing = false;

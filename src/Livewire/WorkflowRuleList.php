@@ -346,6 +346,74 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                         ->default('POST')
                         ->visible(fn (Get $get) => $get('type') === 'call_webhook'),
 
+                    // ── Chamar API REST ────────────────────────────────────────
+                    TextInput::make('rest_url')
+                        ->label('URL da API')
+                        ->helperText('Variáveis permitidas. Ex: https://api.exemplo.com/orders/{{id}}')
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api')
+                        ->required(fn (Get $get) => $get('type') === 'call_rest_api')
+                        ->columnSpanFull(),
+
+                    Select::make('rest_method')
+                        ->label('Método HTTP')
+                        ->options(['POST' => 'POST', 'PUT' => 'PUT', 'PATCH' => 'PATCH'])
+                        ->default('POST')
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api'),
+
+                    Select::make('rest_content_type')
+                        ->label('Content-Type')
+                        ->options([
+                            'application/json'                  => 'application/json',
+                            'application/x-www-form-urlencoded' => 'application/x-www-form-urlencoded',
+                        ])
+                        ->default('application/json')
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api'),
+
+                    Select::make('rest_auth_type')
+                        ->label('Autenticação')
+                        ->options([
+                            'none'   => 'Nenhuma',
+                            'bearer' => 'Bearer Token',
+                            'basic'  => 'Basic Auth',
+                        ])
+                        ->default('none')
+                        ->live()
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api'),
+
+                    TextInput::make('rest_bearer_token')
+                        ->label('Bearer Token')
+                        ->password()
+                        ->revealable()
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'bearer')
+                        ->required(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'bearer')
+                        ->columnSpanFull(),
+
+                    TextInput::make('rest_basic_username')
+                        ->label('Usuário (Basic Auth)')
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'basic')
+                        ->required(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'basic'),
+
+                    TextInput::make('rest_basic_password')
+                        ->label('Senha (Basic Auth)')
+                        ->password()
+                        ->revealable()
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'basic')
+                        ->required(fn (Get $get) => $get('type') === 'call_rest_api' && $get('rest_auth_type') === 'basic'),
+
+                    Textarea::make('rest_body')
+                        ->label('Corpo da requisição (JSON)')
+                        ->helperText('Formato JSON. Use {{campo}} para variáveis. Ex: {"status":"{{status}}","cliente":"{{customer.name}}"}')
+                        ->rows(4)
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api')
+                        ->columnSpanFull(),
+
+                    Textarea::make('rest_headers')
+                        ->label('Headers adicionais')
+                        ->helperText('Um header por linha no formato "Chave: Valor". Ex: X-App-Key: {{token}}')
+                        ->rows(3)
+                        ->visible(fn (Get $get) => $get('type') === 'call_rest_api')
+                        ->columnSpanFull(),
+
                     // ── Alterar Campo ──────────────────────────────────────────
                     Select::make('field_name')
                         ->label('Campo do Model')
@@ -356,6 +424,7 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
 
                     TextInput::make('field_value')
                         ->label('Novo Valor')
+                        ->helperText('Use {{campo}} ou {{relacao.campo}}. Ex: {{status}}, {{customer.name}}')
                         ->visible(fn (Get $get) => $get('type') === 'update_field')
                         ->required(fn (Get $get) => $get('type') === 'update_field'),
                 ])
@@ -486,6 +555,13 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                 ->schema([
                     Toggle::make('webhook_enabled')
                         ->label('Ativar chamadas de webhook')
+                        ->default(true),
+                ]),
+
+            Section::make('API REST')
+                ->schema([
+                    Toggle::make('rest_api_enabled')
+                        ->label('Ativar chamadas de API REST')
                         ->default(true),
                 ]),
 

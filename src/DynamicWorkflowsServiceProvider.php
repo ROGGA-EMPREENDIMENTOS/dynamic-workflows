@@ -6,6 +6,7 @@ namespace Rogga\DynamicWorkflows;
 
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use Rogga\DynamicWorkflows\Actions\CallRestApiAction;
 use Rogga\DynamicWorkflows\Actions\CallWebhookAction;
 use Rogga\DynamicWorkflows\VariableResolver;
 use Rogga\DynamicWorkflows\Actions\SendEmailAction;
@@ -58,7 +59,8 @@ class DynamicWorkflowsServiceProvider extends ServiceProvider
         $registry->register('send_email',    $this->app->make(SendEmailAction::class));
         $registry->register('send_whatsapp', $this->app->make(SendWhatsAppAction::class));
         $registry->register('send_sms',      $this->app->make(SendSmsAction::class));
-        $registry->register('call_webhook',  $this->app->make(CallWebhookAction::class));
+        $registry->register('call_webhook',   $this->app->make(CallWebhookAction::class));
+        $registry->register('call_rest_api',  $this->app->make(CallRestApiAction::class));
         $registry->register('update_field',  $this->app->make(UpdateFieldAction::class));
     }
 }
