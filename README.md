@@ -284,6 +284,21 @@ Payload enviado automaticamente:
 
 ---
 
+### `call_rest_api` — Chamar API REST
+
+Realiza chamadas HTTP para APIs REST com suporte completo a autenticação e corpo dinâmico.
+
+| Campo | Descrição |
+|---|---|
+| URL | Endpoint. Suporta variáveis `{{campo}}` |
+| Método | `POST`, `PUT` ou `PATCH` |
+| Content-Type | `application/json` ou `application/x-www-form-urlencoded` |
+| Autenticação | Nenhuma, Bearer Token ou Basic Auth |
+| Corpo (JSON) | Template JSON. Suporta variáveis `{{campo}}`. Ex: `{"status":"{{status}}"}` |
+| Headers adicionais | Um por linha no formato `Chave: Valor`. Suporta variáveis `{{campo}}` |
+
+---
+
 ### `update_field` — Alterar Campo
 
 Atualiza um campo do model via query builder, sem disparar eventos Eloquent (sem risco de loop infinito).
@@ -291,7 +306,7 @@ Atualiza um campo do model via query builder, sem disparar eventos Eloquent (sem
 | Campo | Descrição |
 |---|---|
 | Campo | Selecionado da tabela do model |
-| Novo valor | Valor literal |
+| Novo valor | Suporta variáveis `{{campo}}`. Ex: `{{status}}`, `{{customer.name}}` |
 
 ---
 
@@ -478,6 +493,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.3.0` | Nova ação `call_rest_api` (POST/PUT/PATCH, Bearer/Basic Auth, headers e corpo dinâmico); execução de ações via Job assíncrono (`ProcessWorkflowActionsJob`); suporte a variáveis `{{campo}}` no campo "Novo valor" da ação `update_field` |
 | `1.2.0` | Cadastro de configurações via interface (⚙), ativar/desativar ações por canal, credenciais de WhatsApp e SMS persistidas no banco |
 | `1.1.0` | Ação de envio de SMS (Comtele), e-mail com Markdown e layout do host, botão "Salvar" no formulário |
 | `1.0.1` | Produção: rota protegida por auth, README revisado |
