@@ -360,6 +360,7 @@ Use `{{variavel}}` em qualquer campo de texto das ações:
 | `{{customer.name}}` | Campo de relação BelongsTo |
 | `{{address.city}}` | Relação aninhada |
 | `{{items.name}}` | HasMany — valores unidos por vírgula |
+| `{{uuid}}` | Gera um UUID novo a cada ocorrência (útil p/ `id` de comandos, idempotência) |
 
 **Exemplos:**
 
@@ -533,6 +534,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.4.1` | Variável reservada `{{uuid}}` — gera um UUID novo por ocorrência, útil para o `id` de comandos (ex: Blip) e idempotência |
 | `1.4.0` | Condições com valor opcional e operadores `is_empty` / `is_not_empty`; operadores `changed`, `changed_from` e `changed_to` no evento *Atualizado*, que comparam com o valor anterior à alteração; logs em todas as actions (tag `[DynamicWorkflows]`) — status/corpo das respostas HTTP, avisos de configuração incompleta e re-lançamento de falhas de conexão para `failed_jobs` |
 | `1.3.0` | Nova ação `call_rest_api` (POST/PUT/PATCH, Bearer/Basic Auth, headers e corpo dinâmico); execução de ações via Job assíncrono (`ProcessWorkflowActionsJob`); suporte a variáveis `{{campo}}` no campo "Novo valor" da ação `update_field` |
 | `1.2.0` | Cadastro de configurações via interface (⚙), ativar/desativar ações por canal, credenciais de WhatsApp e SMS persistidas no banco |

@@ -6,6 +6,7 @@ namespace Rogga\DynamicWorkflows;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class VariableResolver
 {
@@ -29,6 +30,12 @@ class VariableResolver
 
     private function getValue(string $path, Model $model): string
     {
+        // Variáveis reservadas — não dependem do model. Cada ocorrência gera um
+        // valor novo (ex: {{uuid}} usado no id de um comando Blip).
+        if ($special = $this->specialValue($path)) {
+            return $special;
+        }
+
         $parts   = explode('.', $path);
         $current = $model;
 
@@ -62,5 +69,13 @@ class VariableResolver
         }
 
         return (string) ($current ?? '');
+    }
+
+    private function specialValue(string $path): ?string
+    {
+        return match (strtolower($path)) {
+            'uuid'  => (string) Str::uuid(),
+            default => null,
+        };
     }
 }
