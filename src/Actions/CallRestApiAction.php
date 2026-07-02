@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Rogga\DynamicWorkflows\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
 use Rogga\DynamicWorkflows\VariableResolver;
 
@@ -24,6 +26,7 @@ class CallRestApiAction implements ActionHandler
 
         $url    = $this->resolver->resolve($url, $model);
         $method = strtolower($config['rest_method'] ?? 'post');
+        $body   = $this->resolveBody($model, $config);
 
         $request = Http::withHeaders($this->resolveHeaders($model, $config));
         $request = $this->applyAuth($request, $config);
@@ -32,7 +35,35 @@ class CallRestApiAction implements ActionHandler
             $request = $request->asForm();
         }
 
-        $request->$method($url, $this->resolveBody($model, $config));
+        $context = [
+            'model'    => $model::class,
+            'model_id' => $model->getKey(),
+            'method'   => strtoupper($method),
+            'url'      => $url,
+        ];
+
+        try {
+            $response = $request->$method($url, $body);
+        } catch (ConnectionException $e) {
+            Log::error('[DynamicWorkflows] call_rest_api falhou ao conectar', $context + [
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+
+        $context += [
+            'status' => $response->status(),
+            'body'   => mb_substr($response->body(), 0, 2000),
+        ];
+
+        if ($response->failed()) {
+            Log::warning('[DynamicWorkflows] call_rest_api retornou erro HTTP', $context);
+
+            return;
+        }
+
+        Log::info('[DynamicWorkflows] call_rest_api executada com sucesso', $context);
     }
 
     public function getLabel(): string
@@ -51,7 +82,18 @@ class CallRestApiAction implements ActionHandler
         $resolved = $this->resolver->resolve($raw, $model);
         $decoded  = json_decode($resolved, true);
 
-        return is_array($decoded) ? $decoded : [];
+        if (! is_array($decoded)) {
+            Log::warning('[DynamicWorkflows] call_rest_api: corpo JSON inválido após resolver variáveis, enviando corpo vazio', [
+                'model'    => $model::class,
+                'model_id' => $model->getKey(),
+                'json'     => mb_substr($resolved, 0, 500),
+                'error'    => json_last_error_msg(),
+            ]);
+
+            return [];
+        }
+
+        return $decoded;
     }
 
     private function resolveHeaders(Model $model, array $config): array

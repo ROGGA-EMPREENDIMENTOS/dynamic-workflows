@@ -154,6 +154,7 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                     'updated' => 'Atualizado',
                     'deleted' => 'Deletado',
                 ])
+                ->live()
                 ->required(),
 
             Toggle::make('is_active')
@@ -171,19 +172,17 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                         ->required(),
                     Select::make('operator')
                         ->label('Operador')
-                        ->options([
-                            '=' => 'Igual a',
-                            '!=' => 'Diferente de',
-                            '>' => 'Maior que',
-                            '<' => 'Menor que',
-                            '>=' => 'Maior ou igual',
-                            '<=' => 'Menor ou igual',
-                            'like' => 'Contém',
-                        ])
+                        ->options(fn (Get $get) => self::operatorOptions($get('../../event')))
+                        ->default('=')
+                        ->live()
                         ->required(),
                     TextInput::make('value')
                         ->label('Valor')
-                        ->required(),
+                        ->helperText(fn (Get $get) => self::operatorNeedsValue($get('operator'))
+                            ? null
+                            : 'Este operador não utiliza valor.')
+                        ->visible(fn (Get $get) => self::operatorNeedsValue($get('operator')))
+                        ->required(fn (Get $get) => self::operatorNeedsValue($get('operator'))),
                 ])
                 ->columns(3)
                 ->collapsible()
@@ -432,6 +431,37 @@ class WorkflowRuleList extends Component implements HasActions, HasForms, HasTab
                 ->collapsible()
                 ->columnSpanFull(),
         ];
+    }
+
+    protected static function operatorOptions(?string $event): array
+    {
+        $operators = [
+            '='            => 'Igual a',
+            '!='           => 'Diferente de',
+            '>'            => 'Maior que',
+            '<'            => 'Menor que',
+            '>='           => 'Maior ou igual',
+            '<='           => 'Menor ou igual',
+            'like'         => 'Contém',
+            'is_empty'     => 'Está vazio',
+            'is_not_empty' => 'Está preenchido',
+        ];
+
+        // Operadores que comparam com o valor anterior só fazem sentido ao atualizar.
+        if ($event === 'updated') {
+            $operators += [
+                'changed'      => 'Foi alterado',
+                'changed_from' => 'Valor anterior era',
+                'changed_to'   => 'Alterado para',
+            ];
+        }
+
+        return $operators;
+    }
+
+    protected static function operatorNeedsValue(?string $operator): bool
+    {
+        return ! in_array($operator, ['is_empty', 'is_not_empty', 'changed'], true);
     }
 
     protected static function modelFields(?string $modelClass): array

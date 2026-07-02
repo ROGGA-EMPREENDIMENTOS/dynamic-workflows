@@ -44,7 +44,7 @@ trait HasDynamicWorkflows
                 ->get();
 
             foreach ($rules as $rule) {
-                if (! $this->evaluateConditions($rule->conditions ?? [])) {
+                if (! $this->evaluateConditions($rule->conditions ?? [], $event)) {
                     continue;
                 }
 
@@ -65,23 +65,39 @@ trait HasDynamicWorkflows
         }
     }
 
-    protected function evaluateConditions(array $conditions): bool
+    protected function evaluateConditions(array $conditions, string $event): bool
     {
         foreach ($conditions as $condition) {
             $field    = $condition['field']    ?? null;
             $operator = $condition['operator'] ?? '=';
             $expected = $condition['value']    ?? null;
-            $actual   = $field ? $this->getAttribute($field) : null;
+
+            if (! $field) {
+                continue;
+            }
+
+            $actual = $this->getAttribute($field);
+
+            // No evento "updated" comparamos também com o valor anterior à alteração.
+            // Dentro do model event "updated" o getOriginal() ainda guarda o valor
+            // antigo e wasChanged() indica se o campo foi de fato modificado.
+            $original = $event === 'updated' ? $this->getOriginal($field) : null;
+            $changed  = $event === 'updated' ? $this->wasChanged($field) : false;
 
             $passes = match ($operator) {
-                '='     => $actual == $expected,
-                '!='    => $actual != $expected,
-                '>'     => $actual > $expected,
-                '<'     => $actual < $expected,
-                '>='    => $actual >= $expected,
-                '<='    => $actual <= $expected,
-                'like'  => str_contains((string) $actual, (string) $expected),
-                default => true,
+                '='            => $actual == $expected,
+                '!='           => $actual != $expected,
+                '>'            => $actual > $expected,
+                '<'            => $actual < $expected,
+                '>='           => $actual >= $expected,
+                '<='           => $actual <= $expected,
+                'like'         => $expected !== null && str_contains((string) $actual, (string) $expected),
+                'is_empty'     => $actual === null || $actual === '',
+                'is_not_empty' => $actual !== null && $actual !== '',
+                'changed'      => $changed,
+                'changed_from' => $changed && $original == $expected,
+                'changed_to'   => $changed && $actual == $expected,
+                default        => true,
             };
 
             if (! $passes) {

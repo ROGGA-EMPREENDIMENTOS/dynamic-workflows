@@ -211,15 +211,33 @@ Model event (created / updated / deleted)
 
 ### Condições
 
-| Operador | Significado |
-|---|---|
-| `=` | Igual a |
-| `!=` | Diferente de |
-| `>` | Maior que |
-| `<` | Menor que |
-| `>=` | Maior ou igual |
-| `<=` | Menor ou igual |
-| `like` | Contém (substring) |
+As condições são combinadas com lógica **AND** — todas precisam passar para as ações dispararem.
+
+| Operador | Significado | Usa valor? |
+|---|---|---|
+| `=` | Igual a | Sim |
+| `!=` | Diferente de | Sim |
+| `>` | Maior que | Sim |
+| `<` | Menor que | Sim |
+| `>=` | Maior ou igual | Sim |
+| `<=` | Menor ou igual | Sim |
+| `like` | Contém (substring) | Sim |
+| `is_empty` | Está vazio (nulo ou string vazia) | Não |
+| `is_not_empty` | Está preenchido | Não |
+
+Para os operadores que **não usam valor**, o campo "Valor" é ocultado e deixa de ser obrigatório.
+
+#### Operadores exclusivos do evento *Atualizado*
+
+Comparam o valor **anterior à alteração** e só aparecem quando o evento da regra é `updated`:
+
+| Operador | Significado | Usa valor? |
+|---|---|---|
+| `changed` | O campo foi alterado (independente do valor) | Não |
+| `changed_from` | O valor **anterior** era igual a X | Sim |
+| `changed_to` | O campo foi alterado **e** o novo valor é X | Sim |
+
+> Exemplo — disparar só quando `status` mudou de `pendente` para `aprovado`: uma condição `changed_from = pendente` + outra `changed_to = aprovado`.
 
 ---
 
@@ -307,6 +325,28 @@ Atualiza um campo do model via query builder, sem disparar eventos Eloquent (sem
 |---|---|
 | Campo | Selecionado da tabela do model |
 | Novo valor | Suporta variáveis `{{campo}}`. Ex: `{{status}}`, `{{customer.name}}` |
+
+---
+
+## Logs e diagnóstico
+
+Todas as ações registram sua execução no log padrão do Laravel com a tag `[DynamicWorkflows]`. Para acompanhar em tempo real:
+
+```bash
+tail -f storage/logs/laravel.log | grep DynamicWorkflows
+```
+
+| Situação | Nível | Contém |
+|---|---|---|
+| Ação executada com sucesso | `info` | model, id e (nas ações HTTP) status + corpo da resposta |
+| Resposta HTTP de erro (4xx/5xx) | `warning` | status + corpo da resposta — a ação **não** falha o job |
+| Configuração incompleta (URL, destinatário, chave, etc.) | `warning` | quais campos faltaram |
+| Corpo JSON inválido na `call_rest_api` | `warning` | JSON resolvido + mensagem do erro |
+| Falha de conexão / transporte | `error` | mensagem do erro — a exceção é **re-lançada** |
+
+> Falhas de conexão são re-lançadas de propósito: o job cai em `failed_jobs` e é re-tentado (`$tries = 3`). Já uma resposta HTTP de erro (a API respondeu) apenas gera `warning`, para você inspecionar o corpo sem entupir a fila de retentativas.
+
+> **Filas:** as ações rodam via `ProcessWorkflowActionsJob` (assíncrono). Se `QUEUE_CONNECTION` não for `sync`, mantenha um `php artisan queue:work` ativo — caso contrário as ações não executam.
 
 ---
 
@@ -493,6 +533,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.4.0` | Condições com valor opcional e operadores `is_empty` / `is_not_empty`; operadores `changed`, `changed_from` e `changed_to` no evento *Atualizado*, que comparam com o valor anterior à alteração; logs em todas as actions (tag `[DynamicWorkflows]`) — status/corpo das respostas HTTP, avisos de configuração incompleta e re-lançamento de falhas de conexão para `failed_jobs` |
 | `1.3.0` | Nova ação `call_rest_api` (POST/PUT/PATCH, Bearer/Basic Auth, headers e corpo dinâmico); execução de ações via Job assíncrono (`ProcessWorkflowActionsJob`); suporte a variáveis `{{campo}}` no campo "Novo valor" da ação `update_field` |
 | `1.2.0` | Cadastro de configurações via interface (⚙), ativar/desativar ações por canal, credenciais de WhatsApp e SMS persistidas no banco |
 | `1.1.0` | Ação de envio de SMS (Comtele), e-mail com Markdown e layout do host, botão "Salvar" no formulário |

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Rogga\DynamicWorkflows\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
 use Rogga\DynamicWorkflows\Models\WorkflowSettings;
 use Rogga\DynamicWorkflows\VariableResolver;
@@ -24,15 +26,51 @@ class SendSmsAction implements ActionHandler
         $message = $config['sms_message'] ?? null;
 
         if (! $apiUrl || ! $apiKey || ! $to || ! $message) {
+            Log::warning('[DynamicWorkflows] send_sms ignorada: configuração incompleta', [
+                'model'         => $model::class,
+                'model_id'      => $model->getKey(),
+                'has_api_url'   => (bool) $apiUrl,
+                'has_api_key'   => (bool) $apiKey,
+                'has_recipient' => (bool) $to,
+                'has_message'   => (bool) $message,
+            ]);
+
             return;
         }
 
-        Http::withHeaders(['auth-key' => $apiKey])
-            ->post($apiUrl, [
-                'Sender'    => $sender,
-                'Receivers' => $to,
-                'Content'   => $message,
+        $context = [
+            'model'    => $model::class,
+            'model_id' => $model->getKey(),
+            'to'       => $to,
+        ];
+
+        try {
+            $response = Http::withHeaders(['auth-key' => $apiKey])
+                ->post($apiUrl, [
+                    'Sender'    => $sender,
+                    'Receivers' => $to,
+                    'Content'   => $message,
+                ]);
+        } catch (ConnectionException $e) {
+            Log::error('[DynamicWorkflows] send_sms falhou ao conectar', $context + [
+                'error' => $e->getMessage(),
             ]);
+
+            throw $e;
+        }
+
+        $context += [
+            'status' => $response->status(),
+            'body'   => mb_substr($response->body(), 0, 2000),
+        ];
+
+        if ($response->failed()) {
+            Log::warning('[DynamicWorkflows] send_sms retornou erro HTTP', $context);
+
+            return;
+        }
+
+        Log::info('[DynamicWorkflows] send_sms executada com sucesso', $context);
     }
 
     public function getLabel(): string

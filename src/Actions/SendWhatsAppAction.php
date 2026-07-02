@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Rogga\DynamicWorkflows\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
 use Rogga\DynamicWorkflows\Models\WorkflowSettings;
 use Rogga\DynamicWorkflows\VariableResolver;
@@ -23,13 +25,48 @@ class SendWhatsAppAction implements ActionHandler
         $message  = $config['whatsapp_message'] ?? null;
 
         if (! $apiUrl || ! $to || ! $message) {
+            Log::warning('[DynamicWorkflows] send_whatsapp ignorada: configuração incompleta', [
+                'model'         => $model::class,
+                'model_id'      => $model->getKey(),
+                'has_api_url'   => (bool) $apiUrl,
+                'has_recipient' => (bool) $to,
+                'has_message'   => (bool) $message,
+            ]);
+
             return;
         }
 
-        Http::withToken($apiToken)->post($apiUrl, [
-            'phone'   => $to,
-            'message' => $message,
-        ]);
+        $context = [
+            'model'    => $model::class,
+            'model_id' => $model->getKey(),
+            'to'       => $to,
+        ];
+
+        try {
+            $response = Http::withToken($apiToken)->post($apiUrl, [
+                'phone'   => $to,
+                'message' => $message,
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('[DynamicWorkflows] send_whatsapp falhou ao conectar', $context + [
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+
+        $context += [
+            'status' => $response->status(),
+            'body'   => mb_substr($response->body(), 0, 2000),
+        ];
+
+        if ($response->failed()) {
+            Log::warning('[DynamicWorkflows] send_whatsapp retornou erro HTTP', $context);
+
+            return;
+        }
+
+        Log::info('[DynamicWorkflows] send_whatsapp executada com sucesso', $context);
     }
 
     public function getLabel(): string

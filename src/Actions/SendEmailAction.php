@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rogga\DynamicWorkflows\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Rogga\DynamicWorkflows\Contracts\ActionHandler;
 use Rogga\DynamicWorkflows\Mail\WorkflowMail;
@@ -19,11 +20,31 @@ class SendEmailAction implements ActionHandler
         $config = $this->resolver->resolveArray($config, $model);
         $to     = $this->resolveRecipient($model, $config);
 
+        $context = [
+            'model'    => $model::class,
+            'model_id' => $model->getKey(),
+        ];
+
         if (! $to) {
+            Log::warning('[DynamicWorkflows] send_email ignorada: destinatário não resolvido', $context + [
+                'recipient_type' => $config['email_recipient_type'] ?? 'direct',
+            ]);
+
             return;
         }
 
-        Mail::to($to)->send(new WorkflowMail($config, $model));
+        try {
+            Mail::to($to)->send(new WorkflowMail($config, $model));
+        } catch (\Throwable $e) {
+            Log::error('[DynamicWorkflows] send_email falhou ao enviar', $context + [
+                'to'    => $to,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+
+        Log::info('[DynamicWorkflows] send_email enviada', $context + ['to' => $to]);
     }
 
     public function getLabel(): string
