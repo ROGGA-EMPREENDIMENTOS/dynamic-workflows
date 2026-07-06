@@ -534,6 +534,7 @@ src/
 
 | Versão | Descrição |
 |---|---|
+| `1.4.2` | Comparação de condições agora é case-insensitive e numérica quando ambos os lados são numéricos (corrige `changed_to`/`changed_from`/`=` com valores em caixa diferente ou tipos int/string); normaliza enums, booleanos e datas. Helper `DynamicWorkflows::version()` e exibição da versão no título das telas |
 | `1.4.1` | Variável reservada `{{uuid}}` — gera um UUID novo por ocorrência, útil para o `id` de comandos (ex: Blip) e idempotência |
 | `1.4.0` | Condições com valor opcional e operadores `is_empty` / `is_not_empty`; operadores `changed`, `changed_from` e `changed_to` no evento *Atualizado*, que comparam com o valor anterior à alteração; logs em todas as actions (tag `[DynamicWorkflows]`) — status/corpo das respostas HTTP, avisos de configuração incompleta e re-lançamento de falhas de conexão para `failed_jobs` |
 | `1.3.0` | Nova ação `call_rest_api` (POST/PUT/PATCH, Bearer/Basic Auth, headers e corpo dinâmico); execução de ações via Job assíncrono (`ProcessWorkflowActionsJob`); suporte a variáveis `{{campo}}` no campo "Novo valor" da ação `update_field` |
