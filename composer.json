@@ -2,6 +2,7 @@
     "name": "rogga/dynamic-workflows",
     "description": "A Laravel package for configuring business rule workflows via Filament v3.",
     "type": "library",
+    "version": "1.3.1",
     "license": "MIT",
     "require": {
         "php": "^8.2",

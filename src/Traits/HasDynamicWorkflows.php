@@ -85,18 +85,21 @@ trait HasDynamicWorkflows
             $changed  = $event === 'updated' ? $this->wasChanged($field) : false;
 
             $passes = match ($operator) {
-                '='            => $actual == $expected,
-                '!='           => $actual != $expected,
-                '>'            => $actual > $expected,
-                '<'            => $actual < $expected,
-                '>='           => $actual >= $expected,
-                '<='           => $actual <= $expected,
-                'like'         => $expected !== null && str_contains((string) $actual, (string) $expected),
+                '='            => $this->valuesEqual($actual, $expected),
+                '!='           => ! $this->valuesEqual($actual, $expected),
+                '>'            => ($cmp = $this->compareValues($actual, $expected)) !== null && $cmp > 0,
+                '<'            => ($cmp = $this->compareValues($actual, $expected)) !== null && $cmp < 0,
+                '>='           => ($cmp = $this->compareValues($actual, $expected)) !== null && $cmp >= 0,
+                '<='           => ($cmp = $this->compareValues($actual, $expected)) !== null && $cmp <= 0,
+                'like'         => $expected !== null && str_contains(
+                    mb_strtolower((string) $this->normalizeValue($actual)),
+                    mb_strtolower((string) $expected),
+                ),
                 'is_empty'     => $actual === null || $actual === '',
                 'is_not_empty' => $actual !== null && $actual !== '',
                 'changed'      => $changed,
-                'changed_from' => $changed && $original == $expected,
-                'changed_to'   => $changed && $actual == $expected,
+                'changed_from' => $changed && $this->valuesEqual($original, $expected),
+                'changed_to'   => $changed && $this->valuesEqual($actual, $expected),
                 default        => true,
             };
 
@@ -106,5 +109,78 @@ trait HasDynamicWorkflows
         }
 
         return true;
+    }
+
+    /**
+     * Normaliza um valor para um escalar comparável.
+     *
+     * Enums viram o seu value/name, datas viram string ISO, booleanos viram
+     * 1/0. Assim a comparação com o valor configurado (sempre string vinda do
+     * JSON) fica consistente.
+     */
+    protected function normalizeValue(mixed $value): mixed
+    {
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value->name;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 1 : 0;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Compara dois valores por igualdade de forma tolerante:
+     * - numérica quando ambos são numéricos (5 == "5" == "5.0");
+     * - case-insensitive e ignorando espaços nas pontas para strings;
+     * - null e "" são tratados como equivalentes (vazio).
+     */
+    protected function valuesEqual(mixed $a, mixed $b): bool
+    {
+        $a = $this->normalizeValue($a);
+        $b = $this->normalizeValue($b);
+
+        $aEmpty = $a === null || $a === '';
+        $bEmpty = $b === null || $b === '';
+
+        if ($aEmpty || $bEmpty) {
+            return $aEmpty && $bEmpty;
+        }
+
+        if (is_numeric($a) && is_numeric($b)) {
+            return (float) $a === (float) $b;
+        }
+
+        return mb_strtolower(trim((string) $a)) === mb_strtolower(trim((string) $b));
+    }
+
+    /**
+     * Comparação ordenada (<, >, <=, >=). Retorna -1, 0 ou 1 como o operador
+     * spaceship, ou null quando algum dos lados está vazio (comparação inválida).
+     */
+    protected function compareValues(mixed $a, mixed $b): ?int
+    {
+        $a = $this->normalizeValue($a);
+        $b = $this->normalizeValue($b);
+
+        if ($a === null || $a === '' || $b === null || $b === '') {
+            return null;
+        }
+
+        if (is_numeric($a) && is_numeric($b)) {
+            return (float) $a <=> (float) $b;
+        }
+
+        return mb_strtolower(trim((string) $a)) <=> mb_strtolower(trim((string) $b));
     }
 }
